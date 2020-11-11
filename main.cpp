@@ -15,7 +15,7 @@ typedef map<order, double> distribution;
 #define _distribution const distribution &
 
 
-long dist(_order pi, _order pi_0) { //O(m)
+long dist(_order pi, _order pi_0) { //O(|pi|) = O(m), can be any poly(m) rule
     long total = 0;
     for (int i = 0; i < pi.size(); i++) {
         total += abs(pi[i]-pi_0[i]);
@@ -55,38 +55,40 @@ int ZY = 0;
 int ZX = 0;
 int ZA = 0;
 
-order estimate_sample(_order pi, double dispersion, default_random_engine &engine, uniform_real_distribution<double> &unif) {
-    double denom = 0.0;
-    int m = pi.size();
+
+int get_insert_location(int i, double dispersion, double r) { // <<-- the bug must be here // O(m)
+    double total = 0.0;
+    for (int j = 0; j < i; j++) {
+        total += pow(dispersion, i-j);
+        if (r <= total) {
+            ((j==1)?ZZ:ZY)++;
+//            if (j == 1) ZZ++;
+//            else ZY++;
+            ZA += (i==j);
+            return j;
+        }
+    }
+    ZX++; // from this tracker, it seems likely that this case is never hit, but it's good to have as safety
+    return i;  // under assumption that no placement was made due to numerical instability
+}
+
+order estimate_sample(_order pi, double dispersion, default_random_engine &engine, uniform_real_distribution<double> &unif) { // O(m^2)
+    int m = pi.size(); double denom = 0.0;
     order sample;
     for (int i = 0; i < m; i++) {
         denom += pow(dispersion, i);
-        double r = unif(engine)*denom;
-        double total = 0.0; bool place = false;
-        for (int j = 0; j <= i; j++) {
-            total += pow(dispersion, i-j);
-            if (r <= total) {
-                if (j == 1) ZZ++;
-                else ZY++;
-                if (i==j) ZA++;
-                sample.insert(sample.begin()+j, pi[i]);
-                place = true;
-                break;
-            }
-        }
-        if (!place) ZX++; // from this tracker, it seems likely that this case is never hit, but it's good to have as safety
-        if (!place) sample.push_back(pi[i]); // under assumption that no placement was made due to numerical instability
+        sample.insert(sample.begin()+get_insert_location(i, dispersion, unif(engine)*denom), pi[i]);
     }
     return sample;
 }
 
 vector<int> evaluate_winners(const vector<order> &V) { //O(n) assuming plurality, could be any other P-time election
-    vector<int> counts(V.size(), 0);
+    vector<int> counts(V[0].size(), 0);
     for (const auto & v : V) {
         counts[v[0]-1]++;
     }
     vector<int> winners = {0};
-    for (int i = 1; i < V.size(); i++) {
+    for (int i = 1; i < counts.size(); i++) {
         if (counts[i] > counts[winners[0]]) { // allowing for multiple winners
             winners.clear();
             winners.push_back(i);
@@ -96,14 +98,14 @@ vector<int> evaluate_winners(const vector<order> &V) { //O(n) assuming plurality
     return winners;
 }
 
-int main() { //O((n/e)^2 log(1/delta) (m!*n + 2n))
+int main() { //O((n/e)^2 log(1/delta) (m^2*n + 2n))
     int n /* num_voters */, m /* num_candidates */, p /* distinguised candidate */;
     long N, C = 0;
     double eps, delta;
     cin >> m >> n;
     vector<double> dispersions(n);
     vector<order> V(n); // V[i][j] indicates voter i's (j+1)'s favorite candidate
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) { // O(nm)
         for (int j = 0; j < m; j++) {
             int vote; cin >> vote;
             V[i].push_back(vote);
@@ -123,14 +125,14 @@ int main() { //O((n/e)^2 log(1/delta) (m!*n + 2n))
     default_random_engine engine(chrono::system_clock::now().time_since_epoch().count());
     uniform_real_distribution<double> unif(0.0, 1.0);
     vector<int> results(m, 0);
-    for (int j = 0; j < N; j++) {
+    for (int j = 0; j < N; j++) { // O(Nm^2)
         vector<order> sample(n);
         for (int i = 0; i < n; i++) {
 //            sample[i] = get_sample(distributions[i], unif(engine), engine, unif); //O(m!)
             sample[i] = estimate_sample(V[i], dispersions[i], engine, unif); //O(m^2)
         }
-        auto winners = evaluate_winners(sample);
-        for (auto w : winners) results[w-1]++;
+        auto winners = evaluate_winners(sample); // poly(n, m)
+        for (auto w : winners) results[w-1]++; // O(m)
     }
     for (int i = 0; i < m; i++) cout <<  results[i] << " "; cout << endl;
     for (int i = 0; i < m; i++) {
