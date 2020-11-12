@@ -66,7 +66,9 @@ int main() { //O((n/e)^2 log(1/delta) (m^2*n + 2n))
     cin >> m >> n;
 
     // in theory this variable is not needed, but I'm trying to get the whole distribution from the simulation
-    vector<int> results(m, 0);
+	// using input1, the probabilities don't sum to 1. It's because we have non-unique winners
+	// todo figure out if probabilities need to be adjusted based on ^---
+	vector<int> results(m, 0);
     vector<double> dispersions(n);
     vector<order> V(n); // V[i][j] indicates voter (i+1)'s (j+1)'s favorite candidate
 
