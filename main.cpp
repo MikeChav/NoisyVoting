@@ -57,11 +57,50 @@ void F(vorder &V, const vector<double> &R, const vector<double> &sigma, int p) {
 
 /*
  * This
- * idea for poset: x <= y if #votes_x(p) < #votes_y(p) or #votes_x(p) = #votes_y(p) && x is not less ordered than y
+ *
+ * idea for poset:
+ *    x <= y iff #votes_x(p) < #votes_y(p) or (#votes_x(p) = #votes_y(p) and tail(x_i) is not better ordered than tail(y_i))
+ *              formally H(tail(x_i), ordered(tail(x_i))) < H(tail(y_i), ordered(tail(y_i)))
+ *                      but is ordered(tail(y)) == ordered(tail(x))
  * This is a poset - is this useful only in the A/B construction?
+ *          I'm having trouble constructing a minimal value here
+ */
+/*
+ Bottom: p
+ Top: Everyone puts p on top but the rest is in order
+ Bottom: everyone gets as equal votes as possible ... that's an issue now if n = 5, c = 3, who ends with only 1 vote?
+ Ok... This relation looks like a poset, but there's an issue with the final ordering (^). My definition is too vague.
+ this requires a condition on the rows too i.e. [[2,...], [2, ...], [1, ...], [1, ...], [3,...]] is preferred to ANY
+ other vote set V where #votes_p(V) = 2 and p = 2.
  */
 void get_majority_starting(int p, int nv, int nc, vorder &A, vorder &B) {
-    // todo finish implementing
+    order best, worst, good_bad;
+    best.push_back(p);
+    good_bad.push_back(p);
+    worst.push_back(nc);
+    int adj = 1;
+    for (int i = 2; i <= nc; i++) {
+        worst.push_back(nc-i+1);
+        if (i == p) {
+            adj = 0;
+            continue;
+        }
+        best.push_back(i-adj);
+        good_bad.push_back(nc-i+1-adj);
+    }
+
+    int L = (nv+1)/2;
+    for (int i = 1; i <= nv; i++) {
+        A.push_back(best);
+        if (i <= L) {
+            B.push_back(good_bad);
+        }
+        else {
+            B.push_back(worst);
+        }
+    }
+
+
     for (int i = 0; i < nv; i++) {
         A.emplace_back(nc);
         A[i][0] = p;
