@@ -34,7 +34,7 @@ int get_insert_location(int i, double dispersion, double r) { // <<-- the bug mu
 order estimate_sample(_order pi, double dispersion, default_random_engine &engine, uniform_real_distribution<double> &unif) { // O(m^2)
     int m = pi.size(); double denom = 0.0;
     order sample;
-    for (int i = 0; i < m; i++) {
+    for (int i = 0; i < m; i++) { // O(m^2)
         denom += pow(dispersion, i);
         sample.insert(sample.begin()+get_insert_location(i, dispersion, unif(engine)*denom), pi[i]);
     }
@@ -57,8 +57,8 @@ vector<int> evaluate_winners(const vector<order> &V) { //O(n) assuming plurality
     return winners;
 }
 
-int main() { //O((n/e)^2 log(1/delta) (m^2*n + 2n))
-    int n /* num_voters */, m /* num_candidates */, p /* distinguised candidate */;
+int main() { // O(nm+ N*(nm^2+poly(n,m))), N=n^2log(1/delta)/eps^2
+    int n /* num_voters */, m /* num_candidates */, p /* distinguished candidate */;
     long N, C = 0;
     double eps, delta;
     default_random_engine engine(chrono::system_clock::now().time_since_epoch().count());
@@ -80,10 +80,9 @@ int main() { //O((n/e)^2 log(1/delta) (m^2*n + 2n))
     cin >> p >> eps >> delta;
     N = n*n*log(1.0/delta)/(eps*eps); // todo reorder for optimality
 
-    for (int j = 0; j < N; j++) { // O(Nm^2)
+    for (int j = 0; j < N; j++) { // O(N*(nm^2+poly(n,m)))
         vector<order> sample(n);
-        for (int i = 0; i < n; i++) {
-//            sample[i] = get_sample(distributions[i], unif(engine), engine, unif); //O(m!)
+        for (int i = 0; i < n; i++) { //O(nm^2)
             sample[i] = estimate_sample(V[i], dispersions[i], engine, unif); //O(m^2)
         }
         auto winners = evaluate_winners(sample); // poly(n, m)
