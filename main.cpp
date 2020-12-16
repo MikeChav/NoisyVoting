@@ -12,52 +12,72 @@ typedef vector<int> order;
 #define vorder vector<order> // [i][j] indicates voter (i+1)'s (j+1)'s favorite candidate
 #define UL unsigned long
 
-uint64_t fact_m_1 = 0; // todo replace with gmp int
+uint64_t fact_c_1 = 0; // todo replace with gmp int
 
+
+void print_vorder(const vorder &V) {
+    cout << "QUICK" << endl;
+    for (const auto& x : V) {
+        if (x.empty()) cout << "--empty--";
+        for (auto y : x) {
+            cout << y << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
+    cout << "CHECK" << endl;
+}
 
 struct problem_data {
-    UL p, n /* num_voters*/, m/* num_candidates*/;
+    UL p, n /* num_voters*/, c/* num_candidates*/;
     vorder defaults;
     vector<double> sigmas;
     vector<double> randoms;
     vector<double> partitions;
 
-    problem_data() : p(0), n(0), m(0) {}
+    problem_data(UL n, UL c) : p(0), n(n), c(c) {
+        sigmas = vector<double>(n);
+        partitions = vector<double>(n);
+        defaults = vorder(n);
+        for (int i = 0; i < n; i++) {
+            defaults[i] = order(c);
+        }
+    }
 };
 
-double dist(_order pi, _order pi_0) { //O(|pi|) = O(m)
+inline double dist(_order pi, _order pi_0) { //O(|pi|) = O(c)
     // in this implementation, we consider the following weight vector: <1, 0, ..., 0>
     // Thus the implementation reduces simply to:
     return abs(pi[0] - pi_0[0]);
 }
 
-void find_fact_m_1(UL m) { // O(m)
-    if (fact_m_1 == 0) {
-        fact_m_1 = 1;
-        for (int i = 2; i < m; i++) {
-            fact_m_1 *= i;
+void find_fact_c_1(UL c) { // O(c)
+    if (fact_c_1 == 0) {
+        fact_c_1 = 1;
+        for (int i = 2; i < c; i++) {
+            fact_c_1 *= i;
         }
     }
 }
 
-double calculate_partition(_order pi_0, double sigma) { // O(m*n)
-    // this function is very easy to implement in O(m) time since the distance function only returns one of m value
+double calculate_partition(_order pi_0, double sigma) { // O(c)
+    // this function is very easy to implement in O(c) time since the distance function only returns one of c value
     // note this is done per voter
     double Z = 0.0;
     for (int i = 1; i <= pi_0.size(); i++) {
         Z += exp(-1*sigma*abs(i-pi_0[0]));
     }
-    return Z*fact_m_1;
+    return Z * fact_c_1;
 }
 
-void generate_partitions(problem_data &pd) {
-    find_fact_m_1(pd.m);
+void generate_partitions(problem_data &pd) { // O(n*c)
+    find_fact_c_1(pd.c);
     for (int i = 0; i < pd.n; i++) {
         pd.partitions[i] = calculate_partition(pd.defaults[i], pd.sigmas[i]);
     }
 }
 
-bool is_majority_winner(const vector<order> &V, UL p) { //O(n) assuming plurality, could be any other P-time election
+bool is_majority_winner(const vorder &V, UL p) { //O(n) assuming plurality, could be any other P-time election
     vector<int> counts(V[0].size(), 0);
     for (const auto & v : V) {
         counts[v[0]-1]++;
@@ -65,107 +85,106 @@ bool is_majority_winner(const vector<order> &V, UL p) { //O(n) assuming pluralit
     return counts[p-1] == *max_element(counts.begin(), counts.end());
 }
 
-void f(vorder &V, problem_data &pd, UL i) {
+void f(vorder &V, problem_data &pd, UL i) { // O(c+n)
     double r_i = pd.randoms[i];
     int w = floor(r_i*V.size());
     order Q;
-    for (int j = 0; j < V[0].size(); j++) {
-        Q.insert(Q.begin()+floor(r_i*Q.size()), j);
+    for (int j = 0; j < pd.c; j++) {
+        Q.insert(Q.begin()+floor(r_i*Q.size()), j+1);
     }
-    order backup = V[w];
-    V[w] = Q;
-
-    // I'm not sure it's smart to use the same r_i every time, but let's see what happens
+    // I'c not sure it's smart to use the same r_i every time, but let's see what happens
     if (is_majority_winner(V, pd.p) && (r_i*pd.partitions[w] < exp(-1*pd.sigmas[i]*dist(Q, pd.defaults[w])))) {
-        // nothing to do, V has been updated.
-    }
-    else {
-        V[w] = backup;
+        V[w] = Q;
     }
 }
 
-void F(vorder &V, problem_data &pd) {
+void F(vorder &V, problem_data &pd) { // O(|R|(c+n))
     // compute the independent set
     for (UL i = pd.randoms.size(); i >= 1; i--) {
-        f(V, pd, i);
+        f(V, pd, i-1);
     }
 }
 
-
-order get_best(UL p, const order &base) {
-    order best(base.begin(), base.end());
-    best.erase(base.begin()+p-1);
-    best.insert(best.begin(), p);
-    return best;
-}
-
-order get_worst(UL p, const order &base) {
-    order worst(base.rbegin(), base.rend());
-    worst.erase(worst.begin()+base.size()-p); // alternatively, worst().end()-p?
-    worst.insert(worst.begin(), p);
-    return worst;
-}
-
-// O(m+n) amortized (from C++ documentation, push_back is amortized constant time
+// O(c*n) due to copying
 void get_majority_starting(problem_data &pd, vorder &top, vorder &bottom) {
-    order best, worst, good_bad, base(pd.n);
-    for (int i = 1; i <= pd.m; i++) { // O(m)
+    order base(pd.c);
+    for (int i = 1; i <= pd.c; i++) { // O(c)
         base[i-1] = i;
     }
 
     // create top
-    order worst_p = get_worst(pd.p, base); // O(m)
     for (int i = 0; i < pd.n; i++) { // O(n)
-        top.push_back(worst_p);
+        top[i] = order(base.rbegin(), base.rend());
+        top[i].erase(top[i].begin()+base.size()-pd.p); // alternatively, worst().end()-p?
+        top[i].insert(top[i].begin(), pd.p);
     }
 
     // create bottom
-    UL curr = 1, total = pd.n, nc = pd.n/pd.m;
-    while (total != 0) { // O(n)
-        order curr_best = get_best(curr++, base);
+    UL curr = 1, total = pd.n, nc = pd.n/pd.c + (pd.n%pd.c != 0); // might degenerate if c == 1
+    while (true) { // O(n*...)
+        cout << "total=" << total << " nc=" << nc << endl;
         for (int i = 0; i < min(nc, total); i++) {
-            bottom.push_back(curr_best);
+            cout << "i=" << i << endl;
+            bottom[nc*(curr-1)+i] = order(base.begin(), base.end());
+            bottom[nc*(curr-1)+i].erase(bottom[i].begin()+curr-1);
+            bottom[nc*(curr-1)+i].insert(bottom[i].begin(), curr);
+        }
+        curr++;
+        if (total <= nc) {
+            break;
         }
         total -= nc;
     }
-    UL gotten = pd.n%pd.m;
-    if (pd.p == pd.m && gotten != 0) { // O(n/m), `gotten` is kind of a misnomer here
+    print_vorder(bottom);
+    cout << "adjusting" << endl;
+    UL gotten = pd.n%pd.c;
+    if (pd.p == pd.c && gotten != 0) { // O(n/c), `gotten` is kind of a misnomer here
         for (UL i = gotten; i < nc; i++) {
-            bottom[pd.n+i] = bottom.back();
+            bottom[pd.n+i] = order(bottom.back());
         }
     }
+    print_vorder(bottom);
 }
 
-vorder sample(problem_data & pd) {
-    vorder top, bottom;
-    generate_partitions(pd);
-    get_majority_starting(pd, top, bottom);
+vorder sample(problem_data & pd) { // depends on R, which is dynamic.
+    vorder top(pd.n), bottom(pd.n);
+    generate_partitions(pd); // O(c*n)
+    get_majority_starting(pd, top, bottom); //O(c*n)
+    cout << "starters ready" << endl;
     default_random_engine engine(chrono::system_clock::now().time_since_epoch().count());
     uniform_real_distribution<double> unif(0.0, 1.0) ;
+    cout << "random generators ready" << endl;
     while (true) {
         vorder A(top), B(bottom);
         const unsigned  long L = max(1ul, pd.randoms.size());
-        for (int i = 0; i < L; i++) {
+        cout << "L=" << L << endl;
+        for (int i = 0; i < L; i++) { // O(|R|)
             pd.randoms.push_back(unif(engine));
         }
-        F(A, pd);
-        F(B, pd);
-        if (A==B) return A;
+        cout << "application one" << endl;
+        F(A, pd); // O(|R|(c+n))
+        cout << "application two" << endl;
+        F(B, pd); // O(|R|(c+n))
+        cout << "applications done" << endl;
+        if (A == B) return A;
     }
 }
 
-int main() { //O((n/e)^2 log(1/delta) (m^2*n + 2n))
-    problem_data pd;
-    cin >> pd.m >> pd.n >> pd.p;
+int main() {
+    int n, c;
+    cin >> c >> n;
+    problem_data pd(n, c);
+    cin >> pd.p;
 
     for (int i = 0; i < pd.n; i++) { // O(nm)
-        for (int j = 0; j < pd.m; j++) {
+        for (int j = 0; j < pd.c; j++) {
             int vote; cin >> vote; // assume a full-order (no ties)
             pd.defaults[i].push_back(vote);
         }
         cin >> pd.sigmas[i];
     }
-
+    double _e,_d;
+    cin >> _e >> _d;
     sample(pd);
 
     return 0;
