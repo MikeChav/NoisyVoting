@@ -87,19 +87,20 @@ bool is_majority_winner(const vorder &V, UL p) { //O(n) assuming plurality, coul
 
 void f(vorder &V, problem_data &pd, UL i) { // O(c+n)
     double r_i = pd.randoms[i];
-    int w = floor(r_i*V.size());
+    UL w = floor(r_i*pd.n);
     order Q;
     for (int j = 0; j < pd.c; j++) {
         Q.insert(Q.begin()+floor(r_i*Q.size()), j+1);
     }
-    // I'c not sure it's smart to use the same r_i every time, but let's see what happens
-    if (is_majority_winner(V, pd.p) && (r_i*pd.partitions[w] < exp(-1*pd.sigmas[i]*dist(Q, pd.defaults[w])))) {
-        V[w] = Q;
+    // I'm not sure it's smart to use the same r_i every time, but let's see what happens
+    order backup(V[w]);
+    V[w] = order(Q);
+    if (is_majority_winner(V, pd.p) && (r_i*pd.partitions[w] < exp(-1*pd.sigmas[w]*dist(Q, pd.defaults[w])))) {
+        V[w] = order(backup);
     }
 }
 
 void F(vorder &V, problem_data &pd) { // O(|R|(c+n))
-    // compute the independent set
     for (UL i = pd.randoms.size(); i >= 1; i--) {
         f(V, pd, i-1);
     }
@@ -108,9 +109,7 @@ void F(vorder &V, problem_data &pd) { // O(|R|(c+n))
 // O(c*n) due to copying
 void get_majority_starting(problem_data &pd, vorder &top, vorder &bottom) {
     order base(pd.c);
-    for (int i = 1; i <= pd.c; i++) { // O(c)
-        base[i-1] = i;
-    }
+    iota(base.begin(), base.end(), 1);  // O(c)
 
     // create top
     for (int i = 0; i < pd.n; i++) { // O(n)
@@ -124,10 +123,10 @@ void get_majority_starting(problem_data &pd, vorder &top, vorder &bottom) {
     while (true) { // O(n*...)
         cout << "total=" << total << " nc=" << nc << endl;
         for (int i = 0; i < min(nc, total); i++) {
-            cout << "i=" << i << endl;
-            bottom[nc*(curr-1)+i] = order(base.begin(), base.end());
-            bottom[nc*(curr-1)+i].erase(bottom[i].begin()+curr-1);
-            bottom[nc*(curr-1)+i].insert(bottom[i].begin(), curr);
+            UL k = nc*(curr-1)+i;
+            bottom[k] = order(base.begin(), base.end());
+            bottom[k].erase(bottom[k].begin()+curr-1);
+            bottom[k].insert(bottom[k].begin(), curr);
         }
         curr++;
         if (total <= nc) {
@@ -137,10 +136,10 @@ void get_majority_starting(problem_data &pd, vorder &top, vorder &bottom) {
     }
     print_vorder(bottom);
     cout << "adjusting" << endl;
-    UL gotten = pd.n%pd.c;
+    UL gotten = pd.n%nc;
     if (pd.p == pd.c && gotten != 0) { // O(n/c), `gotten` is kind of a misnomer here
         for (UL i = gotten; i < nc; i++) {
-            bottom[pd.n+i] = order(bottom.back());
+            bottom[pd.n-i-1] = order(bottom.back());
         }
     }
     print_vorder(bottom);
@@ -155,6 +154,7 @@ vorder sample(problem_data & pd) { // depends on R, which is dynamic.
     uniform_real_distribution<double> unif(0.0, 1.0) ;
     cout << "random generators ready" << endl;
     while (true) {
+//        break;
         vorder A(top), B(bottom);
         const unsigned  long L = max(1ul, pd.randoms.size());
         cout << "L=" << L << endl;
@@ -167,6 +167,8 @@ vorder sample(problem_data & pd) { // depends on R, which is dynamic.
         F(B, pd); // O(|R|(c+n))
         cout << "applications done" << endl;
         if (A == B) return A;
+        print_vorder(A);
+        print_vorder(B);
     }
 }
 
@@ -185,7 +187,7 @@ int main() {
     }
     double _e,_d;
     cin >> _e >> _d;
-    sample(pd);
+    print_vorder(sample(pd));
 
     return 0;
 }
