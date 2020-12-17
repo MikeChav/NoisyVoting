@@ -91,16 +91,12 @@ void f(vorder &V, problem_data &pd, UL i) { // O(c+n)
     for (int j = 0; j < pd.c; j++) {
         Q.insert(Q.begin()+floor(r_i*Q.size()), j+1);
     }
-//    cout <<"Q=";
-//    for (auto z : Q) cout << z << " ";
-//    cout << endl;
     // I'm not sure it's smart to use the same r_i every time, but let's see what happens
     order backup(V[w]);
     V[w] = order(Q);
     double alpha = exp(-1*pd.sigmas[w]*dist(pd.defaults[w], Q));
     double rho = exp(-1*pd.sigmas[w]*dist(pd.defaults[w], backup));
-
-    if (is_majority_winner(V, pd.p) && (r_i < (alpha/(rho+alpha)))) {
+    if (is_majority_winner(V, pd.p) && (r_i*(rho+alpha) > alpha)){
         V[w] = order(backup);
     }
 }
