@@ -16,7 +16,7 @@ uint64_t fact_c_1 = 0; // todo replace with gmp int
 
 
 void print_vorder(const vorder &V) {
-    cout << "QUICK" << endl;
+    cout << "START PEEK" << endl;
     for (const auto& x : V) {
         if (x.empty()) cout << "--empty--";
         for (auto y : x) {
@@ -24,8 +24,7 @@ void print_vorder(const vorder &V) {
         }
         cout << endl;
     }
-    cout << endl;
-    cout << "CHECK" << endl;
+    cout << "END PEEK" << endl;
 }
 
 struct problem_data {
@@ -87,15 +86,21 @@ bool is_majority_winner(const vorder &V, UL p) { //O(n) assuming plurality, coul
 
 void f(vorder &V, problem_data &pd, UL i) { // O(c+n)
     double r_i = pd.randoms[i];
-    UL w = floor(r_i*pd.n);
-    order Q;
+    UL w = floor(r_i*pd.n); // w.p. 1/n
+    order Q; // w.p. H_n
     for (int j = 0; j < pd.c; j++) {
         Q.insert(Q.begin()+floor(r_i*Q.size()), j+1);
     }
+//    cout <<"Q=";
+//    for (auto z : Q) cout << z << " ";
+//    cout << endl;
     // I'm not sure it's smart to use the same r_i every time, but let's see what happens
     order backup(V[w]);
     V[w] = order(Q);
-    if (is_majority_winner(V, pd.p) && (r_i*pd.partitions[w] < exp(-1*pd.sigmas[w]*dist(Q, pd.defaults[w])))) {
+    double alpha = exp(-1*pd.sigmas[w]*dist(pd.defaults[w], Q));
+    double rho = exp(-1*pd.sigmas[w]*dist(pd.defaults[w], backup));
+
+    if (is_majority_winner(V, pd.p) && (r_i < (alpha/(rho+alpha)))) {
         V[w] = order(backup);
     }
 }
@@ -119,9 +124,9 @@ void get_majority_starting(problem_data &pd, vorder &top, vorder &bottom) {
     }
 
     // create bottom
+    // allocate equal vote chunks to each candidate while votes are available
     UL curr = 1, total = pd.n, nc = pd.n/pd.c + (pd.n%pd.c != 0); // might degenerate if c == 1
     while (true) { // O(n*...)
-        cout << "total=" << total << " nc=" << nc << endl;
         for (int i = 0; i < min(nc, total); i++) {
             UL k = nc*(curr-1)+i;
             bottom[k] = order(base.begin(), base.end());
@@ -134,41 +139,32 @@ void get_majority_starting(problem_data &pd, vorder &top, vorder &bottom) {
         }
         total -= nc;
     }
-    print_vorder(bottom);
-    cout << "adjusting" << endl;
+    // the last candidate might be underserved if we want them to win, so an adjustment is needed
     UL gotten = pd.n%nc;
     if (pd.p == pd.c && gotten != 0) { // O(n/c), `gotten` is kind of a misnomer here
         for (UL i = gotten; i < nc; i++) {
             bottom[pd.n-i-1] = order(bottom.back());
         }
     }
-    print_vorder(bottom);
 }
 
 vorder sample(problem_data & pd) { // depends on R, which is dynamic.
     vorder top(pd.n), bottom(pd.n);
     generate_partitions(pd); // O(c*n)
     get_majority_starting(pd, top, bottom); //O(c*n)
-    cout << "starters ready" << endl;
     default_random_engine engine(chrono::system_clock::now().time_since_epoch().count());
     uniform_real_distribution<double> unif(0.0, 1.0) ;
-    cout << "random generators ready" << endl;
     while (true) {
-//        break;
         vorder A(top), B(bottom);
         const unsigned  long L = max(1ul, pd.randoms.size());
-        cout << "L=" << L << endl;
         for (int i = 0; i < L; i++) { // O(|R|)
             pd.randoms.push_back(unif(engine));
         }
-        cout << "application one" << endl;
+        cout << "L=" << pd.randoms.size() << endl;
+
         F(A, pd); // O(|R|(c+n))
-        cout << "application two" << endl;
         F(B, pd); // O(|R|(c+n))
-        cout << "applications done" << endl;
         if (A == B) return A;
-        print_vorder(A);
-        print_vorder(B);
     }
 }
 
