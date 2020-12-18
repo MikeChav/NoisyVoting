@@ -9,30 +9,22 @@ using namespace std;
 #define UL unsigned long
 typedef vector<UL> order;
 #define _order const order &
-#define vorder vector<order> // [i][j] indicates voter (i+1)'s (j+1)'s favorite candidate
-
-void print_vorder(const vorder &V) {
-    cout << "START PEEK" << endl;
-    for (const auto& x : V) {
-        if (x.empty()) cout << "--empty--";
-        for (auto y : x) {
-            cout << y << " ";
-        }
-        cout << endl;
-    }
-    cout << "END PEEK" << endl;
-}
 
 struct vote {
     UL voter;
     order prefs;
 
-    vote(UL n) {
-        prefs = order(n);
+    vote() :voter(0) {}
+
+    vote(UL n): prefs(n) {}
+
+    bool operator==(const vote &rhs) const {
+        return voter == rhs.voter && prefs == rhs.prefs;
     }
 
 };
 
+// voters are 0-indexed and candidates are 1-indexed
 struct votes {
     vector<UL> m;
     vector<vote> V;
@@ -47,7 +39,7 @@ struct votes {
         m = vector<UL>(n);
         V = vector<vote>(n);
         for (int i = 0; i < n; i++) {
-            V[i].voter = i+1; // voters are stored 1-indexed
+            V[i].voter = i; // voters are stored 0-indexed
         }
         reset_map();
     }
@@ -76,7 +68,26 @@ struct votes {
         set(w, Q);
         sort();
     }
+
+    bool operator==(const votes &rhs) const {
+        return m == rhs.m && V == rhs.V;
+    }
+
+    friend ostream &operator<<(ostream &out, const votes &W);
 };
+
+ostream &operator<<(ostream &out, const votes &W) {
+    out << "START PEEK" << endl;
+    for (const auto& x : W.V) {
+        if (x.prefs.empty()) out << "--empty--";
+        for (auto y : x.prefs) {
+            out << y << " ";
+        }
+        out << endl;
+    }
+    out << "END PEEK" << endl;
+    return out;
+}
 
 struct problem_data {
     UL p, n /* num_voters*/, c/* num_candidates*/;
@@ -118,19 +129,21 @@ void f(votes &V, problem_data &pd, double r_i) { // O(c+n)
     double alpha = exp(-1*pd.sigmas[w]*dist(pd.defaults[w], Q));
     double rho = exp(-1*pd.sigmas[w]*dist(pd.defaults[w], V[w]));
     order backup(V[w]);
-    V.replace(w, Q); // O(nlogn)
+    V.set(w, Q);
     if (is_majority_winner(V, pd.p)) {
 //        cout << pd.p << " majority wins in " << endl;
-//        print_vorder(V);
+//        print_votes(V);
         if (r_i <= alpha/(rho+alpha)) {
-
+            V.sort(); // O(nlogn)
         }
         else {
-            V.replace(w, backup); // O(nlogn)
+            V.set(w, backup);
         }
     }
     else {
-        V.replace(w, backup); // O(nlogn)
+//        cout << "NOT A WINNER" << endl;
+//        cout << V << endl;
+        V.set(w, backup);
     }
 }
 
@@ -145,15 +158,24 @@ void get_majority_starting(problem_data &pd, votes &top, votes &bottom) {
     order base(pd.c);
     iota(base.begin(), base.end(), 1);  // O(c)
 
+    // create top
+    order Q = order(base.rbegin(), base.rend());
+    Q.erase(Q.begin()+base.size()-pd.p); // alternatively, worst().end()-p?
+    Q.insert(Q.begin(), pd.p);
+    for (int i = 0; i < pd.n; i++) { // O(n)
+        top.set(i, Q);
+    }
+
     // create bottom
     // allocate equal vote chunks to each candidate while votes are available
     UL curr = 1, total = pd.n, nc = pd.n/pd.c + (pd.n%pd.c != 0); // might degenerate if c == 1
     while (true) { // O(n*...)
         for (UL i = 0; i < min(nc, total); i++) {
             UL k = nc*(curr-1)+i;
-            bottom.set(k, order(base.begin(), base.end()));
-            bottom[k].erase(bottom[k].begin()+curr-1);
-            bottom[k].insert(bottom[k].begin(), curr);
+            order current = order(base);
+            current.erase(current.begin()+curr-1);
+            current.insert(current.begin(), curr);
+            bottom.set(k, current);
         }
         curr++;
         if (total <= nc) {
@@ -168,13 +190,10 @@ void get_majority_starting(problem_data &pd, votes &top, votes &bottom) {
             bottom.set(pd.n-i-1, order(bottom.V.back().prefs));
         }
     }
-
-    // create top
 }
 
 votes sample(problem_data & pd) { // depends on R, which is dynamic.
     votes top(pd.n), bottom(pd.n);
-//    generate_partitions(pd); // O(c*n)
     get_majority_starting(pd, top, bottom); //O(c*n)
     default_random_engine engine(chrono::system_clock::now().time_since_epoch().count());
     uniform_real_distribution<double> unif(0.0, 1.0) ;
@@ -207,7 +226,7 @@ int main() {
     }
     double _e,_d;
     cin >> _e >> _d;
-    print_vorder(sample(pd));
+    cout << sample(pd) << endl;
 
     return 0;
 }
