@@ -98,7 +98,7 @@ struct problem_data {
     problem_data(UL n, UL c) : p(0), n(n), c(c) {
         sigmas = vector<double>(n);
         defaults = vector<order>(n);
-        for (UL i = 0; i < n; i++) {
+        for (UL i = 0; i < n; i++) { // todo this should not be getting init
             defaults[i] = order(c);
         }
     }
