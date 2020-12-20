@@ -134,16 +134,16 @@ UL sample_lll(problem_data &pd) { // O(Rnc^2(n+c))
 
 double lll(problem_data &pd, UL N) {
     double estimate = 0.0;
-    vector<UL> counters(pd.c);
     for (UL i = 0; i < N; i++) {// O(NRnc^2(n+c))
+        // count the number of tries needed to get the sample, and use the inverse as the probability estimate
         estimate += pow(sample_lll(pd), -1); // O(Rnc^2(n+c))
     }
-
+    // return the average of the estimate
     return (double) estimate/(double)N;
 }
 
 int main() {
-    problem_data pd;
+    problem_data pd; // the constructor reads data from stdin
     UL N = ceil((double)(pd.n*pd.n)*(-1*log(pd.delta))/(pd.epsilon*pd.epsilon));
     cout << "montecarlo=" << monte_carlo(pd, N) << endl;
     cout << "LLL=" << lll(pd, N) << endl;
