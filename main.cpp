@@ -98,10 +98,8 @@ double monte_carlo(problem_data &pd, UL N) {
     for (UL j = 0; j < N; j++) { // O(N(c^2+n))
         vector<order> sample(pd.n);
         // generate a random vote set
-        generate(sample.begin(), sample.end(), [&pd]() { // O(n)
-            static UL i = 0;
-            return estimate_sample(pd, i++ % pd.n);
-        });
+        UL i = 0;
+        generate(sample.begin(), sample.end(), [&pd, &i]() { return estimate_sample(pd, i++);}); // O(n)
         // increment a counter is p wins in the vote set
         count += is_majority_winner(sample, pd.p); //O(n+c)
     }
