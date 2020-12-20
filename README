@@ -1,0 +1,37 @@
+Author: Michael Chavrimootoo
+Course: CSC 487
+Final Project
+
+In this folder are the following files:
+- PROBLEM3v3_Chavrimootoo.pdf (the write-up of the project)
+- Chavrimootoo.cpp (the implementations discussed in the write-up)
+- README (this file)
+- input0 (an example input)
+- input1 (an example input)
+- input2 (an example input)
+- input3 (an example input)
+
+The compile the code do:
+
+g++ -std=c++11 Chavrimootoo.cpp
+
+And run using:
+
+./a.out < inputX
+
+where X is in {0, 1, 2, 3} i.e. input is read form STDIN. You can use your own file (formatting explained below).
+
+This project comes with 4 test files: input0, input1, input2, input3, where:
+input0 : small example with random data
+input1 : small example with a uniform distribution (dispersions = 1)
+input2 : small example with low probability of winning for p
+input3 : a larger example with random data
+
+The test files are formatted as such:
+c n p
+v1 v2 ... vc       // n such lines
+epsilon delta
+
+The output is the probability estimate using the Monte Carlo method and the estimate using the Moser-Tardos method.
+
+The code runs quite quickly: a few second for input2 and input3 and less for input0 and input1.

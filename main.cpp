@@ -12,9 +12,6 @@ typedef vector<UL> order;
 typedef vector<order> vorder;
 #define _vorder const vorder &
 
-// todo add comments to the code
-// make a README
-
 // overload the << operator to print vote set - used for debugging
 ostream &operator<<(ostream &out, _vorder V) {
     out << "START Vote Set" << endl;
